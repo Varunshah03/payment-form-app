@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 
 function App() {
@@ -16,6 +16,17 @@ function App() {
 
   const contributionOptions = [1000, 2500, 4000];
   const tipOptions = [0, 5, 10, 18];
+
+  useEffect(() => {
+    // Preload Razorpay script
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
 
   const validateForm = () => {
     const newErrors = {};
