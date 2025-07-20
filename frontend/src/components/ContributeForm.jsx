@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import bgImage from "../assets/360_F_652225930_sbWHvu8GlyCrcGwTweBdEAlf8xor5VXL.jpg"; // Adjust the path to your background image
+import { useNavigate } from "react-router-dom"; // Add this import
+import bgImage from "../assets/360_F_652225930_sbWHvu8GlyCrcGwTweBdEAlf8xor5VXL.jpg"; // Verify path
 
 function ContributeForm() {
   const [amount, setAmount] = useState(1000);
@@ -17,12 +18,12 @@ function ContributeForm() {
   const [paymentId, setPaymentId] = useState("");
   const [fact, setFact] = useState("");
   const [isLoadingPayment, setIsLoadingPayment] = useState(false);
+  const navigate = useNavigate(); // Add navigate hook
 
   const contributionOptions = [1000, 2500, 4000];
   const tipOptions = [0, 5, 10, 18];
 
   useEffect(() => {
-    // Check if Razorpay is already loaded (from preload or cache)
     if (window.Razorpay) return;
 
     const script = document.createElement("script");
@@ -53,10 +54,24 @@ function ContributeForm() {
     return (baseAmount + tipAmount).toFixed(2);
   };
 
+  // Add a list of fallback facts
+  const fallbackFacts = [
+    "Over 150M children globally work in child labor, missing education.",
+    "59M children lack access to primary education, mostly in low-income areas.",
+    "1 in 4 underprivileged children faces malnutrition, stunting growth.",
+    "152M children live in extreme poverty, surviving on less than $1.90/day.",
+    "Many underprivileged children lack clean water, risking health daily.",
+  ];
+
+  // Modify the fetchFact function
   const fetchFact = async () => {
+    setFact(""); // Clear previous fact
     try {
+      const timestamp = Date.now(); // Add unique parameter for randomization
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${
+          import.meta.env.VITE_GEMINI_API_KEY
+        }`,
         {
           method: "POST",
           headers: {
@@ -67,7 +82,7 @@ function ContributeForm() {
               {
                 parts: [
                   {
-                    text: "Provide a concise, interesting fact or insight about underprivileged children in a single sentence (max 100 characters).",
+                    text: `Provide a unique, concise fact (max 100 characters) about underprivileged children, different from previous responses. Timestamp: ${timestamp}`,
                   },
                 ],
               },
@@ -79,11 +94,15 @@ function ContributeForm() {
       if (data.candidates && data.candidates[0]?.content.parts[0].text) {
         setFact(data.candidates[0].content.parts[0].text);
       } else {
-        setFact("Over 150M children globally work in child labor, missing education.");
+        // Cycle through fallback facts using a random index
+        const randomIndex = Math.floor(Math.random() * fallbackFacts.length);
+        setFact(fallbackFacts[randomIndex]);
       }
     } catch (error) {
       console.error("Error fetching fact:", error);
-      setFact("Over 150M children globally work in child labor, missing education.");
+      // Cycle through fallback facts using a random index
+      const randomIndex = Math.floor(Math.random() * fallbackFacts.length);
+      setFact(fallbackFacts[randomIndex]);
     }
   };
 
@@ -115,7 +134,7 @@ function ContributeForm() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            amount: Math.round(calculateTotal()),
+            amount: Math.round(calculateTotal()), // Razorpay expects amount in paise
             currency: "INR",
           }),
         }
@@ -127,7 +146,7 @@ function ContributeForm() {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: data.amount,
         currency: data.currency,
-        name: data.name,
+        name: data.name || "Fundraiser Contribution",
         order_id: data.orderId,
         handler: async function (response) {
           setPaymentId(response.razorpay_payment_id);
@@ -160,7 +179,22 @@ function ContributeForm() {
 
   const handleClose = () => {
     setShowConfirmation(false);
-    window.location.reload();
+    // Reset form state
+    setAmount(1000);
+    setCustomAmount("");
+    setTip(0);
+    setForm({
+      name: "",
+      email: "",
+      mobile: "",
+      address: "",
+      anonymous: false,
+    });
+    setErrors({});
+    setPaymentId("");
+    setFact("");
+    // Navigate to reset component
+    navigate("/contribute", { replace: true });
   };
 
   return (
@@ -416,7 +450,9 @@ function ContributeForm() {
               <text x="0" y="15" fontSize="15"></text>
             </svg>
           )}
-          {isLoadingPayment ? "Loading..." : `Proceed To Contribute ₹${calculateTotal()}`}
+          {isLoadingPayment
+            ? "Loading..."
+            : `Proceed To Contribute ₹${calculateTotal()}`}
         </button>
         <p className="text-xs text-gray-500 text-center mt-2">
           By continuing, you agree to our Terms of Service and Privacy Policy
